@@ -784,7 +784,7 @@ class MambaIRv2(nn.Module):
     def __init__(self,
                  img_size=64,
                  patch_size=1,
-                 in_chans=3,
+                 in_chans=1,
                  embed_dim=48,
                  d_state=8,
                  depths=(6, 6, 6, 6,),
@@ -799,14 +799,14 @@ class MambaIRv2(nn.Module):
                  ape=False,
                  patch_norm=True,
                  use_checkpoint=False,
-                 upscale=2,
+                 upscale=1,
                  img_range=1.,
                  upsampler='',
                  resi_connection='1conv',
                  **kwargs):
         super().__init__()
-        num_in_ch = in_chans
-        num_out_ch = in_chans
+        num_in_ch = 1
+        num_out_ch = 2
         num_feat = 64
         self.img_range = img_range
         if in_chans == 3:
