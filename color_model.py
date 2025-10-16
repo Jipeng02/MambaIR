@@ -29,8 +29,8 @@ state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, el
 # Remove the incompatible keys
 to_ignore = []
 for k in state_dict.keys():
-    # Ignore the first and last conv layers
-    if k.startswith('conv_first') or k.startswith('conv_last'):
+    # Ignore the first conv layers
+    if k.startswith('conv_first'):
         to_ignore.append(k)
     # If using conv_after_body or upsampling, you may want to check those too
 
@@ -45,11 +45,7 @@ model.load_state_dict(state_dict, strict=False)
 nn.init.kaiming_normal_(model.conv_first.weight, mode='fan_out', nonlinearity='relu')
 if model.conv_first.bias is not None:
     nn.init.zeros_(model.conv_first.bias)
-#zero initialization for the last conv layer
-nn.init.zeros_(model.conv_last.weight)
-if model.conv_last.bias is not None:
-    nn.init.zeros_(model.conv_last.bias)
-    
+
 input_tensor = torch.randn(2, 1, 64, 64).to(device)  # 输入也放到 device
 output = model(input_tensor)
-print(output.shape)  # Should print torch.Size([2, 2, 64, 64])
+print(output.shape)  # Should print torch.Size([2, 3, 64, 64])

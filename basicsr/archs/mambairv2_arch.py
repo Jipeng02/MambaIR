@@ -806,7 +806,7 @@ class MambaIRv2(nn.Module):
                  **kwargs):
         super().__init__()
         num_in_ch = 1
-        num_out_ch = 2
+        num_out_ch = 3
         num_feat = 64
         self.img_range = img_range
         if in_chans == 3:
