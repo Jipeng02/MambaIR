@@ -1,5 +1,6 @@
 from basicsr.archs.mambairv2_arch import MambaIRv2
 import torch
+import torch.nn as nn
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = MambaIRv2(
     img_size=64,
@@ -37,9 +38,18 @@ for k in to_ignore:
     print(f"Skip loading {k}")
     state_dict.pop(k)
 
+
 # Now load the rest (strict=False allows missing/unmatched keys)
 model.load_state_dict(state_dict, strict=False)
-
+# kaiming/he initialization for the first conv layer
+nn.init.kaiming_normal_(model.conv_first.weight, mode='fan_out', nonlinearity='relu')
+if model.conv_first.bias is not None:
+    nn.init.zeros_(model.conv_first.bias)
+#zero initialization for the last conv layer
+nn.init.zeros_(model.conv_last.weight)
+if model.conv_last.bias is not None:
+    nn.init.zeros_(model.conv_last.bias)
+    
 input_tensor = torch.randn(2, 1, 64, 64).to(device)  # 输入也放到 device
 output = model(input_tensor)
 print(output.shape)  # Should print torch.Size([2, 2, 64, 64])
