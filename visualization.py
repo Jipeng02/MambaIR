@@ -101,5 +101,4 @@ print("- input_grayscale.png")
 print("- predicted_rgb.png")
 print("- ground_truth_rgb.png")
 
-//git config user.name "Jipeng02"
-git config user.email "jipeng.wang@student.uq.edu.au"
+
