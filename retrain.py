@@ -22,7 +22,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('MambaIR/mambairv2_ColorDN_15.pth', map_location='cpu')
+checkpoint = torch.load('MambaIR\color_model_lab_trained_100epoch_val.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
