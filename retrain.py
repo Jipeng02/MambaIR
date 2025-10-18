@@ -22,7 +22,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('MambaIR\color_model_lab_trained_100epoch_val.pth', map_location='cpu')
+checkpoint = torch.load('./MambaIR/color_model_lab_trained_100epoch_val.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
@@ -78,11 +78,11 @@ from torch.utils.data import DataLoader
 criterion = nn.L1Loss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-img_dir = '/content/drive/MyDrive/PatternAnalysis-2025/data/val2017'
+img_dir = './data/val2017'
 dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((64,64)), T.ToTensor(),]))
 loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
-num_epochs = 100
+num_epochs = 60
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -94,8 +94,13 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
         running_loss += loss.item() * gray.size(0)
-    print(f"Epoch {epoch+1}, Avg Loss: {running_loss/len(loader.dataset):.6f}")
+    
+    avg_loss = running_loss / len(loader.dataset)
+    print(f"Epoch {epoch+1}, Avg Loss: {avg_loss:.6f}")
 
+    # 每20个epoch保存一次模型
+    if (epoch + 1) % 20 == 0:
+        torch.save(model.state_dict(), f"./color_model_lab_epoch{epoch+1}.pth")
 
-torch.save(model.state_dict(), "color_model_lab_trained_120epoch_val.pth")
-torch.save(model.state_dict(), "/content/drive/MyDrive/color_model_lab_trained_120epoch_val.pth")
+# 最后一次保存（防止刚好不是20的倍数时丢失最终模型）
+torch.save(model.state_dict(), "./color_model_lab_trained_final.pth")
