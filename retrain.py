@@ -22,29 +22,29 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('/content/MambaIR/mambairv2_ColorDN_15.pth', map_location='cpu')
+checkpoint = torch.load('MambaIR/mambairv2_ColorDN_15.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
 # Remove the incompatible keys
-to_ignore = []
-for k in state_dict.keys():
-    # Ignore the first and last conv layers
-    if k.startswith('conv_first'):
-        to_ignore.append(k)
-    # If using conv_after_body or upsampling, you may want to check those too
+# to_ignore = []
+# for k in state_dict.keys():
+#     # Ignore the first and last conv layers
+#     if k.startswith('conv_first'):
+#         to_ignore.append(k)
+#     # If using conv_after_body or upsampling, you may want to check those too
 
-for k in to_ignore:
-    print(f"Skip loading {k}")
-    state_dict.pop(k)
+# for k in to_ignore:
+#     print(f"Skip loading {k}")
+#     state_dict.pop(k)
 
 
 # Now load the rest (strict=False allows missing/unmatched keys)
 model.load_state_dict(state_dict, strict=False)
 # kaiming/he initialization for the first conv layer
-nn.init.kaiming_normal_(model.conv_first.weight, mode='fan_out', nonlinearity='relu')
-if model.conv_first.bias is not None:
-    nn.init.zeros_(model.conv_first.bias)
+# nn.init.kaiming_normal_(model.conv_first.weight, mode='fan_out', nonlinearity='relu')
+# if model.conv_first.bias is not None:
+#     nn.init.zeros_(model.conv_first.bias)
 
     
 import os
@@ -76,7 +76,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 criterion = nn.L1Loss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 img_dir = '/content/drive/MyDrive/PatternAnalysis-2025/data/val2017'
 dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((64,64)), T.ToTensor(),]))
@@ -97,5 +97,5 @@ for epoch in range(num_epochs):
     print(f"Epoch {epoch+1}, Avg Loss: {running_loss/len(loader.dataset):.6f}")
 
 
-torch.save(model.state_dict(), "color_model_lab_trained_100epoch_val.pth")
-torch.save(model.state_dict(), "/content/drive/MyDrive/color_model_lab_trained_100epoch_val.pth")
+torch.save(model.state_dict(), "color_model_lab_trained_120epoch_val.pth")
+torch.save(model.state_dict(), "/content/drive/MyDrive/color_model_lab_trained_120epoch_val.pth")
