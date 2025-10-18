@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = MambaIRv2(
-    img_size=64,
+    img_size=128,
     patch_size=1,
-    in_chans=1,        # 会被强制为 1
+    in_chans=3,
     embed_dim=174,
     d_state=16,
     depths=(6, 6, 6, 6, 6, 6),
@@ -15,8 +15,8 @@ model = MambaIRv2(
     num_tokens=128,
     convffn_kernel_size=5,
     mlp_ratio=2.0,
-    upsampler='',      # 会被强制为 ''
-    upscale=1,         # 会被强制为 1
+    upsampler='',
+    upscale=1,
     resi_connection='1conv'
 
 ).to(device)
@@ -41,14 +41,14 @@ state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, el
 
 # Now load the rest (strict=False allows missing/unmatched keys)
 model.load_state_dict(state_dict, strict=False)
-# kaiming/he initialization for the first conv layer
-# nn.init.kaiming_normal_(model.conv_first.weight, mode='fan_out', nonlinearity='relu')
-# if model.conv_first.bias is not None:
-#     nn.init.zeros_(model.conv_first.bias)
 
-    
+# Freeze all parameters except the first convolution layer.
+# 微调时仅调整输入映射，其余层保持预训练权重。
+for name, param in model.named_parameters():
+    param.requires_grad = name.startswith('conv_first')
+
+
 import os
-import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as T
@@ -68,18 +68,19 @@ class ColorizationDataset(Dataset):
         img = Image.open(self.img_paths[idx]).convert('RGB')
         color = self.transform(img) if self.transform else T.ToTensor()(img)
         gray = self.to_gray(img)
-        gray = self.transform(gray) if self.transform else T.ToTensor()(gray)
-        return gray, color
+        gray_tensor = self.transform(gray) if self.transform else T.ToTensor()(gray)
+        # 将单通道灰度复制到三个通道，以匹配预训练模型的输入规格
+        gray_stacked = gray_tensor.repeat(3, 1, 1)
+        return gray_stacked, color
 
-import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 
 criterion = nn.L1Loss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+trainable_params = [p for p in model.parameters() if p.requires_grad]
+optimizer = torch.optim.Adam(trainable_params, lr=1e-4)
 
 img_dir = './data/val2017'
-dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((64,64)), T.ToTensor(),]))
+dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((128,128)), T.ToTensor(),]))
 loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
 num_epochs = 60
