@@ -11,5 +11,5 @@
 
 eval "$(conda shell.bash hook)"
 conda activate torch
-
+python retrain.py
 #ssh s4839921@rangpur.compute.eait.uq.edu.au 
