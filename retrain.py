@@ -22,7 +22,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('./MambaIR/color_model_lab_trained_100epoch_val.pth', map_location='cpu')
+checkpoint = torch.load('./mambairv2_ColorDN_15.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
@@ -41,11 +41,47 @@ state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, el
 
 # Now load the rest (strict=False allows missing/unmatched keys)
 model.load_state_dict(state_dict, strict=False)
+# import torch.nn as nn
 
-# Freeze all parameters except the first convolution layer.
-# 微调时仅调整输入映射，其余层保持预训练权重。
-for name, param in model.named_parameters():
-    param.requires_grad = name.startswith('conv_first')
+# # 筛选出可用于 LoRA 的模块（一般是 Linear 或 Conv2d）
+# target_module_types = (nn.Linear, nn.Conv2d)  # 可扩展支持更多模块
+
+# # 存储目标模块名
+# target_modules = []
+
+# for name, module in model.named_modules():
+#     if isinstance(module, target_module_types):
+#         # 只保留最后一级模块名（如 q_proj，而不是 full.path.q_proj）
+#         last_name = name.split('.')[-1]
+#         if last_name not in target_modules:
+#             target_modules.append(last_name)
+
+# print("✅ 可用于 LoRA 的模块名如下:")
+# print(target_modules)
+from peft import get_peft_model, LoraConfig, TaskType
+
+target_modules = [
+    'conv_first', 'wqkv', 'proj', 'out_proj',
+    'fc1', 'fc2', 'conv_after_body', 'conv_last'
+]
+
+lora_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    lora_dropout=0.05,
+    bias="none",
+    task_type=TaskType.FEATURE_EXTRACTION,
+    target_modules=target_modules
+)
+
+from peft.tuners.lora import LoraModel  # 👈 关键
+
+model = LoraModel(model, lora_config,adapter_name="default")
+# model.print_trainable_parameters()
+
+# model.print_trainable_parameters()  # 可选：确认实际参与训练的参数
+
+
 
 
 import os
@@ -79,29 +115,38 @@ criterion = nn.L1Loss()
 trainable_params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.Adam(trainable_params, lr=1e-4)
 
-img_dir = './data/val2017'
+img_dir = '../data'
 dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((128,128)), T.ToTensor(),]))
-loader = DataLoader(dataset, batch_size=4, shuffle=True)
+loader = DataLoader(dataset, batch_size=2, shuffle=True)
 
-num_epochs = 60
+num_epochs = 5
+scaler = torch.cuda.amp.GradScaler()  # ✅ 初始化放在外面，只需一次
+
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
+
     for step, (gray, color) in enumerate(loader):
         gray, color = gray.to(device), color.to(device)
         optimizer.zero_grad()
-        pred = model(gray)
-        loss = criterion(pred, color)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item() * gray.size(0)
-    
+
+        with torch.cuda.amp.autocast():  # ✅ 使用 FP16 推理
+            pred = model(gray)
+            loss = criterion(pred, color)
+
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
+        running_loss += loss.item() * gray.size(0)  # ✅ 累计 loss（乘样本数）
+
     avg_loss = running_loss / len(loader.dataset)
     print(f"Epoch {epoch+1}, Avg Loss: {avg_loss:.6f}")
 
-    # 每20个epoch保存一次模型
-    if (epoch + 1) % 20 == 0:
-        torch.save(model.state_dict(), f"./color_model_lab_epoch{epoch+1}.pth")
 
-# 最后一次保存（防止刚好不是20的倍数时丢失最终模型）
-torch.save(model.state_dict(), "./color_model_lab_trained_final.pth")
+    # # 每1个epoch保存一次模型
+    # if (epoch + 1) % 1 == 0:
+    #     torch.save(model.state_dict(), f"./new_color_model_lab_epoch{epoch+1}.pth")
+
+# 最后一次保存
+torch.save(model.state_dict(), f"./new_color_model_lab_epoch{num_epochs}.pth")
