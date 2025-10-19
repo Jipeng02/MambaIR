@@ -112,6 +112,10 @@ class ColorizationDataset(Dataset):
 from torch.utils.data import DataLoader
 
 criterion = nn.L1Loss()
+for name, param in model.named_parameters():
+    if "conv_first" in name:
+        param.requires_grad = True
+
 trainable_params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.Adam(trainable_params, lr=1e-4)
 
