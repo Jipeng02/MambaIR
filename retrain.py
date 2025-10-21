@@ -22,7 +22,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('./mambairv2_ColorDN_15.pth', map_location='cpu')
+checkpoint = torch.load('./mamba.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
@@ -112,10 +112,6 @@ class ColorizationDataset(Dataset):
 from torch.utils.data import DataLoader
 
 criterion = nn.L1Loss()
-for name, param in model.named_parameters():
-    if "conv_first" in name:
-        param.requires_grad = True
-
 trainable_params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.Adam(trainable_params, lr=1e-4)
 
@@ -153,4 +149,4 @@ for epoch in range(num_epochs):
     #     torch.save(model.state_dict(), f"./new_color_model_lab_epoch{epoch+1}.pth")
 
 # 最后一次保存
-torch.save(model.state_dict(), f"./new_color_model_lab_epoch{num_epochs}.pth")
+torch.save(model.state_dict(), f"./new_color_model_lab_5.pth")

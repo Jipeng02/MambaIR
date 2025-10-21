@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = MambaIRv2(
-    img_size=64,
+    img_size=128,
     patch_size=1,
-    in_chans=1,        # 会被强制为 1
+    in_chans=3,        # 会被强制为 1
     embed_dim=174,
     d_state=16,
     depths=(6, 6, 6, 6, 6, 6),
@@ -22,7 +22,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('/content/color_model_lab_trained.pth', map_location='cpu')
+checkpoint = torch.load('./new_color_model_last_no_lora.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
@@ -53,8 +53,10 @@ class ColorizationDataset(Dataset):
         img = Image.open(self.img_paths[idx]).convert('RGB')
         color = self.transform(img) if self.transform else T.ToTensor()(img)
         gray = self.to_gray(img)
-        gray = self.transform(gray) if self.transform else T.ToTensor()(gray)
-        return gray, color
+        gray_tensor = self.transform(gray) if self.transform else T.ToTensor()(gray)
+        # 将单通道灰度复制到三个通道，以匹配预训练模型的输入规格
+        gray_stacked = gray_tensor.repeat(3, 1, 1)
+        return gray_stacked, color
 
 import torch
 import torch.nn as nn
@@ -63,9 +65,9 @@ from torch.utils.data import DataLoader
 # criterion = nn.L1Loss()
 # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-img_dir = '/content/drive/MyDrive/PatternAnalysis-2025/data/train2017'
-dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((64,64)), T.ToTensor(),]),max_samples= 2000)
-loader = DataLoader(dataset, batch_size=4, shuffle=True)
+img_dir = '../data'
+dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((128,128)), T.ToTensor(),]))
+loader = DataLoader(dataset, batch_size=2, shuffle=True)
 import random
 from torchvision.utils import save_image
 import os
@@ -73,12 +75,13 @@ import os
 # Ensure model is in evaluation mode
 model.eval()
 
+
 # Randomly select an image from the dataset
 idx = random.randint(0, len(dataset) - 1)
 gray, color = dataset[idx]  # gray: [1, H, W], color: [3, H, W]
 
 # Add batch dimension and move to device
-gray_input = gray.unsqueeze(0).to(device)  # [1, 1, 64, 64]
+gray_input = gray.unsqueeze(0).to(device)  # [1, 1, 128, 128]
 
 # Predict with model (no gradient)
 with torch.no_grad():
@@ -89,12 +92,10 @@ pred = pred.clamp(0, 1).squeeze(0).cpu()   # [3, 64, 64]
 gray = gray.cpu()
 color = color.cpu()
 
-# Save images to /content
-os.makedirs('/content', exist_ok=True)
 
-save_image(gray, '/content/input_grayscale_2.png')       # shape: [1, 64, 64]
-save_image(pred, '/content/predicted_rgb_2.png')         # shape: [3, 64, 64]
-save_image(color, '/content/ground_truth_rgb_2.png')     # shape: [3, 64, 64]
+save_image(gray, './input_grayscale_2.png')       # shape: [1, 128, 128]
+save_image(pred, './predicted_rgb_2.png')         # shape: [3, 128, 128]
+save_image(color, './ground_truth_rgb_2.png')     # shape: [3, 128, 128]
 
 print("Images saved to /content:")
 print("- input_grayscale.png")
