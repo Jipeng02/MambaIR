@@ -22,7 +22,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('./new_color_model_last_no_lora.pth', map_location='cpu')
+checkpoint = torch.load('./lab_epoch10_perce.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
@@ -93,13 +93,13 @@ gray = gray.cpu()
 color = color.cpu()
 
 
-save_image(gray, './input_grayscale_2.png')       # shape: [1, 128, 128]
-save_image(pred, './predicted_rgb_2.png')         # shape: [3, 128, 128]
-save_image(color, './ground_truth_rgb_2.png')     # shape: [3, 128, 128]
+save_image(gray, './input_grayscale_per.png')       # shape: [1, 128, 128]
+save_image(pred, './predicted_rgb_per.png')         # shape: [3, 128, 128]
+save_image(color, './ground_truth_rgb_per.png')     # shape: [3, 128, 128]
 
 print("Images saved to /content:")
-print("- input_grayscale.png")
-print("- predicted_rgb.png")
-print("- ground_truth_rgb.png")
+print("- input_grayscale_per.png")
+print("- predicted_rgb_per.png")
+print("- ground_truth_rgb_per.png")
 
 
