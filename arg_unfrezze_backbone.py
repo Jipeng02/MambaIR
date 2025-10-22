@@ -25,7 +25,7 @@ model = MambaIRv2(
 ).to(device)
 
 # ==== Load pretrained ====
-ckpt_path = '/content/drive/MyDrive/full_finetuned_final_rgb.pth'
+ckpt_path = './new_color_model_last_no_lora_1.pth'
 checkpoint = torch.load(ckpt_path, map_location='cpu')
 state_dict = checkpoint.get('params', checkpoint)
 model.load_state_dict(state_dict, strict=False)
@@ -137,7 +137,7 @@ class ColorizationDataset(Dataset):
         gray_stacked = gray_tensor.repeat(3, 1, 1)
         return gray_stacked, color
 
-img_dir = '/content/drive/MyDrive/PatternAnalysis-2025/data/val2017'
+img_dir = '../data'
 transform = T.Compose([T.Resize((128, 128)), T.ToTensor()])
 dataset = ColorizationDataset(img_dir, transform=transform, use_augmentation=True)
 
@@ -305,7 +305,7 @@ for epoch in range(num_epochs):
         
         if avg_loss < best_loss:
             best_loss = avg_loss
-            torch.save(model.state_dict(), "/content/drive/MyDrive/best_full_finetuned_rgb_2.pth")
+            torch.save(model.state_dict(), "./best_full_finetuned.pth")
             print(f"  ✓ 保存最佳模型 (Loss: {avg_loss:.6f})")
         
         print("="*60 + "\n")
@@ -314,8 +314,8 @@ for epoch in range(num_epochs):
         break
 
 # ==== Save final model ====
-save_path = "/content/drive/MyDrive/full_finetuned_final_rgb_2.pth"
+save_path = "./full_finetuned_final.pth"
 torch.save(model.state_dict(), save_path)
 print(f"\n✓ 训练完成！")
 print(f"✓ 最终模型保存到: {save_path}")
-print(f"✓ 最佳模型 (Loss={best_loss:.6f}) 保存到: ./best_full_finetuned_rgb_2.pth")
+print(f"✓ 最佳模型 (Loss={best_loss:.6f}) 保存到: ./best_full_finetuned.pth")
