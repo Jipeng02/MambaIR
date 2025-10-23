@@ -22,7 +22,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load the full checkpoint (could be .pth or .pt file)
-checkpoint = torch.load('./lab_epoch10_perce.pth', map_location='cpu')
+checkpoint = torch.load('./full_finetuned_final.pth', map_location='cpu')
 
 state_dict = checkpoint.get('params', checkpoint)  # 'params' if it's a dict, else the plain dict
 
@@ -65,41 +65,41 @@ from torch.utils.data import DataLoader
 # criterion = nn.L1Loss()
 # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-img_dir = '../data'
-dataset = ColorizationDataset(img_dir, transform=T.Compose([T.Resize((128,128)), T.ToTensor(),]))
-loader = DataLoader(dataset, batch_size=2, shuffle=True)
-import random
+
+
+# 批量推理所有G开头的jpg图片，保存为P开头
+import glob
 from torchvision.utils import save_image
-import os
 
-# Ensure model is in evaluation mode
+img_dir = '../OUTPUT'
+g_img_paths = sorted(glob.glob(os.path.join(img_dir, 'G*.jpg')))
+transform = T.Compose([T.Resize((128,128)), T.ToTensor()])
+dataset = ColorizationDataset(img_dir, transform=transform, max_samples=None)
+
 model.eval()
+print(f"Found {len(g_img_paths)} G*.jpg images for inference.")
 
+for g_path in g_img_paths:
+    # 取文件名编号
+    base = os.path.basename(g_path)
+    if base.startswith('G') and base.endswith('.jpg'):
+        num = base[2:].split('.')[0] if '_' in base else base[1:-4]
+        p_name = f"P{base[1:]}"
+        p_path = os.path.join(img_dir, p_name)
 
-# Randomly select an image from the dataset
-idx = random.randint(0, len(dataset) - 1)
-gray, color = dataset[idx]  # gray: [1, H, W], color: [3, H, W]
+        # 读取并处理图片
+        img = Image.open(g_path).convert('RGB')
+        color = transform(img)
+        gray = T.Grayscale(num_output_channels=1)(img)
+        gray_tensor = transform(gray)
+        gray_stacked = gray_tensor.repeat(3, 1, 1)
 
-# Add batch dimension and move to device
-gray_input = gray.unsqueeze(0).to(device)  # [1, 1, 128, 128]
+        gray_input = gray_stacked.unsqueeze(0).to(device)
+        with torch.no_grad():
+            pred = model(gray_input)
+        pred = pred.clamp(0, 1).squeeze(0).cpu()
 
-# Predict with model (no gradient)
-with torch.no_grad():
-    pred = model(gray_input)  # Expected output: [1, 3, 64, 64]
-
-# Clamp output to [0, 1] for valid image saving
-pred = pred.clamp(0, 1).squeeze(0).cpu()   # [3, 64, 64]
-gray = gray.cpu()
-color = color.cpu()
-
-
-save_image(gray, './input_grayscale_per.png')       # shape: [1, 128, 128]
-save_image(pred, './predicted_rgb_per.png')         # shape: [3, 128, 128]
-save_image(color, './ground_truth_rgb_per.png')     # shape: [3, 128, 128]
-
-print("Images saved to /content:")
-print("- input_grayscale_per.png")
-print("- predicted_rgb_per.png")
-print("- ground_truth_rgb_per.png")
+        save_image(pred, p_path)
+        print(f"✓ {base} -> {p_name}")
 
 
