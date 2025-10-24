@@ -1,4 +1,4 @@
-from module import MambaIRv2
+from basicsr.archs.mambairv2_arch import MambaIRv2
 import torch
 import os
 from PIL import Image
@@ -26,7 +26,7 @@ model = MambaIRv2(
 ).to(device)
 
 # Load checkpoint
-checkpoint = torch.load('final_model.pth', map_location='cpu')
+checkpoint = torch.load('/content/drive/MyDrive/full_finetuned_final_lab_2.pth', map_location='cpu')
 state_dict = checkpoint.get('params', checkpoint)
 model.load_state_dict(state_dict, strict=False)
 
